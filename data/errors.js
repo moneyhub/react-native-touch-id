@@ -73,7 +73,8 @@ const androidApiErrorMap = {
   9: codes.androidApiCodes.FINGERPRINT_ERROR_LOCKOUT_PERMANENT,
   10: codes.androidApiCodes.FINGERPRINT_ERROR_USER_CANCELED,
   11: codes.androidApiCodes.FINGERPRINT_ERROR_NO_FINGERPRINTS,
-  12: codes.androidApiCodes.FINGERPRINT_ERROR_HW_NOT_PRESENT
+  12: codes.androidApiCodes.FINGERPRINT_ERROR_HW_NOT_PRESENT,
+  13: codes.androidApiCodes.FINGERPRINT_ERROR_USER_CANCELED
 };
 
 const androidModuleErrorMap = {
