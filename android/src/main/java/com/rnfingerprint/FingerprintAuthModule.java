@@ -4,35 +4,51 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.KeyguardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.fingerprint.FingerprintManager;
 import android.os.Build;
 
-import androidx.annotation.NonNull;
-import androidx.biometrics.BiometricPrompt;
-import androidx.fragment.app.FragmentActivity;
-
+import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.BaseActivityEventListener;
 import com.facebook.react.bridge.Callback;
-import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 
-import java.util.concurrent.Executor;
-
 import javax.crypto.Cipher;
 
-public class FingerprintAuthModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
+public class FingerprintAuthModule extends ReactContextBaseJavaModule {
     private KeyguardManager keyguardManager;
-    private boolean isAppActive;
-
-    public static boolean inProgress = false;
+    private Callback mErrorCb;
+    private Callback mSuccessCb;
+    private static final int BIOMETRIC_AUTHENTICATION_REQUEST = 467081;
 
     public FingerprintAuthModule(final ReactApplicationContext reactContext) {
         super(reactContext);
-
-        reactContext.addLifecycleEventListener(this);
+        reactContext.addActivityEventListener(mActivityEventListener);
     }
+
+    private final ActivityEventListener mActivityEventListener = new BaseActivityEventListener() {
+        @Override
+        public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {
+            if (requestCode != BIOMETRIC_AUTHENTICATION_REQUEST ||
+                    mErrorCb == null || mSuccessCb == null) {
+                return;
+            }
+
+            if (resultCode == Activity.RESULT_CANCELED) {
+                mErrorCb.invoke(FingerprintAuthConstants.AUTHENTICATION_CANCELED, "Cancelled");
+            } else if (resultCode == Activity.RESULT_OK) {
+                int code = intent.getIntExtra("code", FingerprintAuthConstants.AUTHENTICATION_FAILED);
+                if (code != FingerprintAuthConstants.AUTHENTICATION_SUCCESS) {
+                    mErrorCb.invoke("Failed", code);
+                } else {
+                    mSuccessCb.invoke("Success");
+                }
+            }
+        }
+    };
 
     private KeyguardManager getKeyguardManager() {
         if (keyguardManager != null) {
@@ -54,7 +70,7 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
     }
 
     @ReactMethod
-    public void isSupported(final Callback reactErrorCallback, final Callback reactSuccessCallback) {
+    public void isSupported(final Callback errorCallback, final Callback successCallback) {
         final Activity activity = getCurrentActivity();
         if (activity == null) {
             return;
@@ -62,87 +78,48 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
 
         int result = isFingerprintAuthAvailable();
         if (result == FingerprintAuthConstants.IS_SUPPORTED) {
-            reactSuccessCallback.invoke("Is supported.");
+            successCallback.invoke("Is supported.");
         } else {
-            reactErrorCallback.invoke("Not supported.", result);
+            errorCallback.invoke("Not supported.", result);
         }
     }
 
     @TargetApi(Build.VERSION_CODES.M)
     @ReactMethod
-    public void authenticate(final String reason, final ReadableMap authConfig, final Callback reactErrorCallback, final Callback reactSuccessCallback) {
-        final FragmentActivity activity = (FragmentActivity) getCurrentActivity();
-        if (inProgress || !isAppActive || activity == null) {
+    public void authenticate(
+            final String reason,
+            final ReadableMap config,
+            final Callback errorCallback,
+            final Callback successCallback
+    ) {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) {
             return;
         }
-        inProgress = true;
 
         int availableResult = isFingerprintAuthAvailable();
         if (availableResult != FingerprintAuthConstants.IS_SUPPORTED) {
-            inProgress = false;
-            reactErrorCallback.invoke("Not supported", availableResult);
+            errorCallback.invoke("Not supported", availableResult);
             return;
         }
 
         /* FINGERPRINT ACTIVITY RELATED STUFF */
         final Cipher cipher = new FingerprintCipher().getCipher();
         if (cipher == null) {
-            inProgress = false;
-            reactErrorCallback.invoke("Not supported", FingerprintAuthConstants.NOT_AVAILABLE);
+            errorCallback.invoke("Not supported", FingerprintAuthConstants.NOT_AVAILABLE);
             return;
         }
 
-        BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
-                .setDescription(reason)
-                .setNegativeButtonText(authConfig.getString("cancelText"))
-                .setTitle(authConfig.getString("title"))
-                .build();
+        mErrorCb = errorCallback;
+        mSuccessCb = successCallback;
+        ReactApplicationContext context = getReactApplicationContext();
+        Intent intent = new Intent(activity, BiometricActivity.class);
 
-        BiometricExecutor executor = new BiometricExecutor(activity);
-        BiometricPrompt.AuthenticationCallback authenticationCallback = getAuthenticationCallback(
-                reactErrorCallback, reactSuccessCallback
-        );
+        intent.putExtra("reason", reason);
+        intent.putExtra("cancelText", config.getString("cancelText"));
+        intent.putExtra("title", config.getString("title"));
 
-        new BiometricPrompt(activity, executor, authenticationCallback).authenticate(info);
-
-        if (!isAppActive) {
-            inProgress = false;
-            return;
-        }
-    }
-
-    private BiometricPrompt.AuthenticationCallback getAuthenticationCallback(final Callback reactErrorCallback, final Callback reactSuccessCallback) {
-        return new BiometricPrompt.AuthenticationCallback() {
-            @Override
-            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                super.onAuthenticationError(errorCode, errString);
-                reactErrorCallback.invoke(errString, errorCode);
-                inProgress = false;
-            }
-            @Override
-            public void onAuthenticationFailed() {
-                super.onAuthenticationFailed();
-                inProgress = false;
-            }
-            @Override
-            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                reactSuccessCallback.invoke();
-                inProgress = false;
-            }
-        };
-    }
-
-    private class BiometricExecutor implements Executor {
-        private Activity mActivity;
-
-        BiometricExecutor(Activity activity) {
-            mActivity = activity;
-        }
-
-        @Override
-        public void execute(Runnable command) {
-            mActivity.runOnUiThread(command);
-        }
+        activity.startActivityForResult(intent, BIOMETRIC_AUTHENTICATION_REQUEST);
     }
 
     private int isFingerprintAuthAvailable() {
@@ -174,20 +151,5 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
             return FingerprintAuthConstants.NOT_ENROLLED;
         }
         return FingerprintAuthConstants.IS_SUPPORTED;
-    }
-
-    @Override
-    public void onHostResume() {
-        isAppActive = true;
-    }
-
-    @Override
-    public void onHostPause() {
-        isAppActive = false;
-    }
-
-    @Override
-    public void onHostDestroy() {
-        isAppActive = false;
     }
 }
