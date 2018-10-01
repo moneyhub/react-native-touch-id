@@ -6,9 +6,9 @@ import android.os.Bundle;
 
 import java.util.concurrent.Executor;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.biometrics.BiometricPrompt;
+import android.support.annotation.NonNull;
+import android.support.v7.app.AppCompatActivity;
+import com.rnfingerprint.biometrics.BiometricPrompt;
 
 public class BiometricActivity extends AppCompatActivity {
     @Override
