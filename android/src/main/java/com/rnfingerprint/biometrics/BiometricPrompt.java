@@ -1,4 +1,3 @@
-package com.rnfingerprint.biometrics;
 /*
  * Copyright 2018 The Android Open Source Project
  *
@@ -15,22 +14,32 @@ package com.rnfingerprint.biometrics;
  * limitations under the License.
  */
 
+package com.rnfingerprint.biometrics;
+
 import static java.lang.annotation.RetentionPolicy.SOURCE;
-import android.content.DialogInterface;
-import android.os.Build;
-import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.text.TextUtils;
-import android.util.Log;
-import android.support.v4.app.FragmentActivity;
+
 import android.arch.lifecycle.Lifecycle;
 import android.arch.lifecycle.LifecycleObserver;
 import android.arch.lifecycle.OnLifecycleEvent;
+import android.content.DialogInterface;
+import android.os.Build;
+import android.os.Bundle;
+import android.support.annotation.IntDef;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.text.TextUtils;
+import android.util.Log;
+
 import java.lang.annotation.Retention;
 import java.security.Signature;
 import java.util.concurrent.Executor;
+
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
+
 /**
  * A class that manages a system-provided biometric prompt. On devices running P and above, this
  * will show a system-provided authentication prompt, using a device's supported biometric
@@ -40,8 +49,10 @@ import javax.crypto.Mac;
  * activity is no longer in the foreground.
  */
 public class BiometricPrompt implements BiometricConstants {
+
     private static final String TAG = "BiometricPromptCompat";
     private static final boolean DEBUG = false;
+
     static final String DIALOG_FRAGMENT_TAG = "FingerprintDialogFragment";
     static final String FINGERPRINT_HELPER_FRAGMENT_TAG = "FingerprintHelperFragment";
     static final String BIOMETRIC_FRAGMENT_TAG = "BiometricFragment";
@@ -49,9 +60,22 @@ public class BiometricPrompt implements BiometricConstants {
     static final String KEY_SUBTITLE = "subtitle";
     static final String KEY_DESCRIPTION = "description";
     static final String KEY_NEGATIVE_TEXT = "negative_text";
-    @Retention(SOURCE)
 
+    @Retention(SOURCE)
+    @IntDef({BiometricConstants.ERROR_HW_UNAVAILABLE,
+            BiometricConstants.ERROR_UNABLE_TO_PROCESS,
+            BiometricConstants.ERROR_TIMEOUT,
+            BiometricConstants.ERROR_NO_SPACE,
+            BiometricConstants.ERROR_CANCELED,
+            BiometricConstants.ERROR_LOCKOUT,
+            BiometricConstants.ERROR_VENDOR,
+            BiometricConstants.ERROR_LOCKOUT_PERMANENT,
+            BiometricConstants.ERROR_USER_CANCELED,
+            BiometricConstants.ERROR_NO_BIOMETRICS,
+            BiometricConstants.ERROR_HW_NOT_PRESENT,
+            BiometricConstants.ERROR_NEGATIVE_BUTTON})
     @interface BiometricError {}
+
     /**
      * A wrapper class for the crypto objects supported by BiometricPrompt. Currently the
      * framework supports {@link Signature}, {@link Cipher}, and {@link Mac} objects.
@@ -60,58 +84,67 @@ public class BiometricPrompt implements BiometricConstants {
         private final Signature mSignature;
         private final Cipher mCipher;
         private final Mac mMac;
-        public CryptoObject(Signature signature) {
+
+        public CryptoObject(@NonNull Signature signature) {
             mSignature = signature;
             mCipher = null;
             mMac = null;
         }
-        public CryptoObject(Cipher cipher) {
+
+        public CryptoObject(@NonNull Cipher cipher) {
             mCipher = cipher;
             mSignature = null;
             mMac = null;
         }
-        public CryptoObject(Mac mac) {
+
+        public CryptoObject(@NonNull Mac mac) {
             mMac = mac;
             mCipher = null;
             mSignature = null;
         }
+
         /**
          * Get {@link Signature} object.
          * @return {@link Signature} object or null if this doesn't contain one.
          */
-
+        @Nullable
         public Signature getSignature() {
             return mSignature;
         }
+
         /**
          * Get {@link Cipher} object.
          * @return {@link Cipher} object or null if this doesn't contain one.
          */
-
+        @Nullable
         public Cipher getCipher() {
             return mCipher;
         }
+
         /**
          * Get {@link Mac} object.
          * @return {@link Mac} object or null if this doesn't contain one.
          */
-
+        @Nullable
         public Mac getMac() {
             return mMac;
         }
     }
+
     /**
      * Container for callback data from {@link #authenticate(PromptInfo)} and
      * {@link #authenticate(PromptInfo, CryptoObject)}.
      */
     public static class AuthenticationResult {
         private final CryptoObject mCryptoObject;
+
         /**
          * @param crypto
          */
         AuthenticationResult(CryptoObject crypto) {
             mCryptoObject = crypto;
         }
+
         /**
          * Obtain the crypto object associated with this transaction
          * @return crypto object provided to {@link #authenticate(PromptInfo, CryptoObject)}.
@@ -121,6 +154,7 @@ public class BiometricPrompt implements BiometricConstants {
             return mCryptoObject;
         }
     }
+
     /**
      * Callback structure provided to {@link BiometricPrompt}. Users of {@link
      * BiometricPrompt} must provide an implementation of this for listening to
@@ -135,51 +169,60 @@ public class BiometricPrompt implements BiometricConstants {
          * @param errString A human-readable error string that can be shown on an UI
          */
         public void onAuthenticationError(@BiometricError int errorCode,
-                                          CharSequence errString) {}
+                @NonNull CharSequence errString) {}
+
         /**
          * Called when a biometric is recognized.
          * @param result An object containing authentication-related data
          */
-        public void onAuthenticationSucceeded(AuthenticationResult result) {}
+        public void onAuthenticationSucceeded(@NonNull AuthenticationResult result) {}
+
         /**
          * Called when a biometric is valid but not recognized.
          */
+
         public void onAuthenticationFailed() {}
     }
+
     /**
      * A class that contains a builder which returns the {@link PromptInfo} to be used in
      * {@link #authenticate(PromptInfo, CryptoObject)} and {@link #authenticate(PromptInfo)}.
      */
     public static class PromptInfo {
+
         /**
          * A builder that collects arguments to be shown on the system-provided biometric dialog.
          */
         public static class Builder {
             private final Bundle mBundle = new Bundle();
+
             /**
              * Required: Set the title to display.
              */
-
-            public Builder setTitle(CharSequence title) {
+            @NonNull
+            public Builder setTitle(@NonNull CharSequence title) {
                 mBundle.putCharSequence(KEY_TITLE, title);
                 return this;
             }
+
             /**
              * Optional: Set the subtitle to display.
              */
-
-            public Builder setSubtitle(CharSequence subtitle) {
+            @NonNull
+            public Builder setSubtitle(@Nullable CharSequence subtitle) {
                 mBundle.putCharSequence(KEY_SUBTITLE, subtitle);
                 return this;
             }
+
             /**
              * Optional: Set the description to display.
              */
-
-            public Builder setDescription(CharSequence description) {
+            @NonNull
+            public Builder setDescription(@Nullable CharSequence description) {
                 mBundle.putCharSequence(KEY_DESCRIPTION, description);
                 return this;
             }
+
             /**
              * Required: Set the text for the negative button. This would typically be used as a
              * "Cancel" button, but may be also used to show an alternative method for
@@ -187,20 +230,22 @@ public class BiometricPrompt implements BiometricConstants {
              * @param text
              * @return
              */
-
-            public Builder setNegativeButtonText(CharSequence text) {
+            @NonNull
+            public Builder setNegativeButtonText(@NonNull CharSequence text) {
                 mBundle.putCharSequence(KEY_NEGATIVE_TEXT, text);
                 return this;
             }
+
             /**
              * Creates a {@link BiometricPrompt}.
              * @return a {@link BiometricPrompt}
              * @throws IllegalArgumentException if any of the required fields are not set.
              */
-
+            @NonNull
             public PromptInfo build() {
                 final CharSequence title = mBundle.getCharSequence(KEY_TITLE);
                 final CharSequence negative = mBundle.getCharSequence(KEY_NEGATIVE_TEXT);
+
                 if (TextUtils.isEmpty(title)) {
                     throw new IllegalArgumentException("Title must be set and non-empty");
                 } else if (TextUtils.isEmpty(negative)) {
@@ -210,51 +255,62 @@ public class BiometricPrompt implements BiometricConstants {
                 return new PromptInfo(mBundle);
             }
         }
+
         private Bundle mBundle;
+
         PromptInfo(Bundle bundle) {
             mBundle = bundle;
         }
+
         Bundle getBundle() {
             return mBundle;
         }
+
         /**
          * @return See {@link Builder#setTitle(CharSequence)}.
          */
-
+        @NonNull
         public CharSequence getTitle() {
             return mBundle.getCharSequence(KEY_TITLE);
         }
+
         /**
          * @return See {@link Builder#setSubtitle(CharSequence)}.
          */
-
+        @Nullable
         public CharSequence getSubtitle() {
             return mBundle.getCharSequence(KEY_SUBTITLE);
         }
+
         /**
          * @return See {@link Builder#setDescription(CharSequence)}.
          */
-
+        @Nullable
         public CharSequence getDescription() {
             return mBundle.getCharSequence(KEY_DESCRIPTION);
         }
+
         /**
          * @return See {@link Builder#setNegativeButtonText(CharSequence)}.
          */
-
+        @NonNull
         public CharSequence getNegativeButtonText() {
             return mBundle.getCharSequence(KEY_NEGATIVE_TEXT);
         }
     }
+
     // Passed in from the client.
     final FragmentActivity mFragmentActivity;
     final Executor mExecutor;
     final AuthenticationCallback mAuthenticationCallback;
+
     // Created internally for devices before P.
     FingerprintDialogFragment mFingerprintDialogFragment;
     FingerprintHelperFragment mFingerprintHelperFragment;
+
     // Created internally for devices P and above.
     BiometricFragment mBiometricFragment;
+
     /**
      *  A shim to interface with the framework API and simplify the support library's API.
      *  The support library sends onAuthenticationError when the negative button is pressed.
@@ -274,8 +330,7 @@ public class BiometricPrompt implements BiometricConstants {
                                 mAuthenticationCallback.onAuthenticationError(
                                         ERROR_NEGATIVE_BUTTON,
                                         errorText);
-                                mFragmentActivity.getSupportFragmentManager().beginTransaction()
-                                        .remove(mBiometricFragment).commit();
+                                mBiometricFragment.cleanup();
                             } else {
                                 CharSequence errorText =
                                         mFingerprintDialogFragment.getNegativeButtonText();
@@ -290,6 +345,7 @@ public class BiometricPrompt implements BiometricConstants {
                     });
                 }
             };
+
     /**
      * Observe the client's lifecycle. Keep authenticating across configuration changes, but
      * dismiss the prompt if the client goes into the background.
@@ -314,6 +370,7 @@ public class BiometricPrompt implements BiometricConstants {
                 }
             }
         }
+
         @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
         void onResume() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -330,7 +387,9 @@ public class BiometricPrompt implements BiometricConstants {
                 mFingerprintHelperFragment = (FingerprintHelperFragment) mFragmentActivity
                         .getSupportFragmentManager().findFragmentByTag(
                                 FINGERPRINT_HELPER_FRAGMENT_TAG);
+
                 if (DEBUG) Log.v(TAG, "FingerprintDialogFragment: " + mFingerprintDialogFragment);
+                if (DEBUG) Log.v(TAG, "FingerprintHelperFragment: " + mFingerprintHelperFragment);
                 if (mFingerprintDialogFragment != null && mFingerprintHelperFragment != null) {
                     mFingerprintDialogFragment.setNegativeButtonListener(mNegativeButtonListener);
                     mFingerprintHelperFragment.setCallback(mExecutor, mAuthenticationCallback);
@@ -339,6 +398,7 @@ public class BiometricPrompt implements BiometricConstants {
             }
         }
     };
+
     /**
      * Constructs a {@link BiometricPrompt} which can be used to prompt the user for
      * authentication. The authenticaton prompt created by
@@ -354,8 +414,8 @@ public class BiometricPrompt implements BiometricConstants {
      * @param executor An executor to handle callback events.
      * @param callback An object to receive authentication events.
      */
-    public BiometricPrompt(FragmentActivity fragmentActivity,
-                           Executor executor, AuthenticationCallback callback) {
+    public BiometricPrompt(@NonNull FragmentActivity fragmentActivity,
+            @NonNull Executor executor, @NonNull AuthenticationCallback callback) {
         if (fragmentActivity == null) {
             throw new IllegalArgumentException("FragmentActivity must not be null");
         }
@@ -368,8 +428,10 @@ public class BiometricPrompt implements BiometricConstants {
         mFragmentActivity = fragmentActivity;
         mExecutor = executor;
         mAuthenticationCallback = callback;
+
         mFragmentActivity.getLifecycle().addObserver(mLifecycleObserver);
     }
+
     /**
      * Shows the biometric prompt. The prompt survives lifecycle changes by default. To cancel the
      * authentication, use {@link #cancelAuthentication()}.
@@ -377,7 +439,7 @@ public class BiometricPrompt implements BiometricConstants {
      *             {@link BiometricPrompt.PromptInfo.Builder}.
      * @param crypto The crypto object associated with the authentication.
      */
-    public void authenticate(PromptInfo info, CryptoObject crypto) {
+    public void authenticate(@NonNull PromptInfo info, @NonNull CryptoObject crypto) {
         if (info == null) {
             throw new IllegalArgumentException("PromptInfo can not be null");
         } else if (crypto == null) {
@@ -385,49 +447,76 @@ public class BiometricPrompt implements BiometricConstants {
         }
         authenticateInternal(info, crypto);
     }
+
     /**
      * Shows the biometric prompt. The prompt survives lifecycle changes by default. To cancel the
      * authentication, use {@link #cancelAuthentication()}.
      * @param info The information that will be displayed on the prompt. Create this object using
      *             {@link BiometricPrompt.PromptInfo.Builder}.
      */
-    public void authenticate(PromptInfo info) {
+    public void authenticate(@NonNull PromptInfo info) {
         if (info == null) {
             throw new IllegalArgumentException("PromptInfo can not be null");
         }
         authenticateInternal(info, null /* crypto */);
     }
-    private void authenticateInternal(PromptInfo info, CryptoObject crypto) {
+
+    private void authenticateInternal(@NonNull PromptInfo info, @Nullable CryptoObject crypto) {
         final Bundle bundle = info.getBundle();
+        final FragmentManager fragmentManager = mFragmentActivity.getSupportFragmentManager();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // Create the fragment that wraps BiometricPrompt once.
             if (mBiometricFragment == null) {
-                // Create the fragment that wraps BiometricPrompt
-                mBiometricFragment = BiometricFragment.newInstance(bundle);
+                mBiometricFragment = BiometricFragment.newInstance();
                 mBiometricFragment.setCallbacks(mExecutor, mNegativeButtonListener,
                         mAuthenticationCallback);
             }
+            // Set the crypto object.
             mBiometricFragment.setCryptoObject(crypto);
-            mFragmentActivity.getSupportFragmentManager().beginTransaction()
-                    .add(mBiometricFragment, BIOMETRIC_FRAGMENT_TAG).commit();
+            mBiometricFragment.setBundle(bundle);
+
+            if (fragmentManager.findFragmentByTag(BIOMETRIC_FRAGMENT_TAG) == null) {
+                // If the fragment hasn't been added before, add it. It will also start the
+                // authentication.
+                fragmentManager.beginTransaction().add(mBiometricFragment, BIOMETRIC_FRAGMENT_TAG)
+                        .commit();
+            } else {
+                // If it's been added before, just re-attach it.
+                fragmentManager.beginTransaction().attach(mBiometricFragment).commit();
+            }
         } else {
             // Create the UI
             if (mFingerprintDialogFragment == null) {
-                mFingerprintDialogFragment = FingerprintDialogFragment.newInstance(bundle);
+                mFingerprintDialogFragment = FingerprintDialogFragment.newInstance();
                 mFingerprintDialogFragment.setNegativeButtonListener(mNegativeButtonListener);
             }
-            mFingerprintDialogFragment.show(mFragmentActivity.getSupportFragmentManager(),
-                    DIALOG_FRAGMENT_TAG);
+            mFingerprintDialogFragment.setBundle(bundle);
+            mFingerprintDialogFragment.show(fragmentManager, DIALOG_FRAGMENT_TAG);
+
             // Create the connection to FingerprintManager
             if (mFingerprintHelperFragment == null) {
                 mFingerprintHelperFragment = FingerprintHelperFragment.newInstance();
                 mFingerprintHelperFragment.setCallback(mExecutor, mAuthenticationCallback);
-                mFingerprintHelperFragment.setHandler(mFingerprintDialogFragment.getHandler());
             }
+            mFingerprintHelperFragment.setHandler(mFingerprintDialogFragment.getHandler());
             mFingerprintHelperFragment.setCryptoObject(crypto);
-            mFragmentActivity.getSupportFragmentManager().beginTransaction()
-                    .add(mFingerprintHelperFragment, FINGERPRINT_HELPER_FRAGMENT_TAG).commit();
+
+            if (fragmentManager.findFragmentByTag(FINGERPRINT_HELPER_FRAGMENT_TAG) == null) {
+                // If the fragment hasn't been added before, add it. It will also start the
+                // authentication.
+                fragmentManager.beginTransaction()
+                        .add(mFingerprintHelperFragment, FINGERPRINT_HELPER_FRAGMENT_TAG).commit();
+            } else {
+                // If it's been added before, just re-attach it.
+                fragmentManager.beginTransaction().attach(mFingerprintHelperFragment).commit();
+            }
         }
+        // For the case when onResume() is being called right after authenticate,
+        // we need to make sure that all fragment transactions have been committed.
+        fragmentManager.executePendingTransactions();
     }
+
     /**
      * Cancels the biometric authentication, and dismisses the dialog upon confirmation from the
      * biometric service.

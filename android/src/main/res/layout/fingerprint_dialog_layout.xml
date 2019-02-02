@@ -14,11 +14,13 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:id="@+id/fingerprint_dialog_root"
-    android:orientation="vertical">
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:id="@+id/fingerprint_dialog_root"
+              android:orientation="vertical">
+
     <TextView
         android:id="@+id/fingerprint_subtitle"
         android:layout_width="match_parent"
@@ -30,6 +32,7 @@
         android:singleLine="true"
         android:ellipsize="marquee"
         android:marqueeRepeatLimit="marquee_forever"/>
+
     <TextView
         android:id="@+id/fingerprint_description"
         android:layout_width="match_parent"
@@ -39,6 +42,7 @@
         android:layout_marginStart="24dp"
         android:textSize="16sp"
         android:maxLines="4"/>
+
     <ImageView
         android:id="@+id/fingerprint_icon"
         android:layout_width="@dimen/fingerprint_icon_size"
@@ -46,6 +50,7 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="32dp"
         android:scaleType="fitXY" />
+
     <TextView
         android:id="@+id/fingerprint_error"
         android:layout_width="match_parent"
@@ -60,4 +65,5 @@
         android:text="@string/fingerprint_dialog_touch_sensor"
         android:contentDescription="@string/accessibility_fingerprint_dialog_help_area"
         android:textColor="?android:attr/textColorSecondary" />
+
 </LinearLayout>
