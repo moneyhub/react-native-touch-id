@@ -22,7 +22,7 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule {
     private KeyguardManager keyguardManager;
     private Callback mErrorCb;
     private Callback mSuccessCb;
-    private static final int BIOMETRIC_AUTHENTICATION_REQUEST = 467081;
+    private static final short BIOMETRIC_AUTHENTICATION_REQUEST = 31653;
 
     public FingerprintAuthModule(final ReactApplicationContext reactContext) {
         super(reactContext);
