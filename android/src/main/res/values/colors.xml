@@ -14,7 +14,6 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-
 <resources>
     <color name="biometric_error_color">#ff5722</color> <!-- deep orange 500 -->
 </resources>
