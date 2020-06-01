@@ -8,7 +8,7 @@ import java.util.concurrent.Executor;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.biometrics.BiometricPrompt;
+import androidx.biometric.BiometricPrompt;
 
 public class BiometricActivity extends AppCompatActivity {
     @Override
@@ -39,7 +39,7 @@ public class BiometricActivity extends AppCompatActivity {
                 setResult(Activity.RESULT_OK, resultIntent);
                 finish();
             }
-            
+
             @Override
             public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
                 resultIntent.putExtra("code", FingerprintAuthConstants.AUTHENTICATION_SUCCESS);
